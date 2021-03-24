@@ -1,0 +1,31 @@
+import vk_api
+import vk_api.longpoll
+
+from settings import TOKEN
+
+vk = vk_api.VkApi(token=TOKEN)
+vk_api = vk.get_api()
+
+
+def get_list_conversations(count=30, offset=0):
+    conversations_ids = []
+
+    conversations = vk_api.messages.getConversations(count=count, offset=offset, fields="first_name,last_name,name")[
+        'items']
+    for conversation in conversations:
+        conversations_ids.append(conversation['conversation']['peer']['id'])
+
+    return conversations_ids
+
+
+def get_conversation_text(id, count_messages=30):
+    messages = []
+
+    conversation_history = vk_api.messages.getHistory(count=count_messages, peer_id=id)['items']
+    for message in conversation_history:
+        if message['text'] == '':
+            messages.append(f'From: {message["from_id"]}\n\n <><><><><><><><>\n\n')
+        else:
+            messages.append(f'From: {message["from_id"]}\n\n {message["text"]}\n\n')
+
+    return messages
