@@ -8,13 +8,29 @@ vk = vk_api.VkApi(token=TOKEN)
 vk_api = vk.get_api()
 vk_longpoll = VkLongPoll(vk)
 
-def get_list_conversations(count=30, offset=0):
+cache = {}
+
+
+def get_list_conversations(count=10, offset=0):
     conversations_ids = []
 
     conversations = vk_api.messages.getConversations(count=count, offset=offset, fields="first_name,last_name,name")[
         'items']
     for conversation in conversations:
-        conversations_ids.append(conversation['conversation']['peer']['id'])
+        try:
+            peer_id = conversation['conversation']['peer']['id']
+            type_conversation = conversation['conversation']['peer']['type']
+            if type_conversation == "chat":
+                conversations_ids.append([conversation['conversation']['chat_settings']['title'], peer_id])
+            elif type_conversation == "user":
+                conversations_ids.append(
+                    [vk_api.users.get(user_ids=conversation['conversation']['peer']['id'])[0]['first_name'], peer_id])
+            elif type_conversation == "group":
+                conversations_ids.append(
+                    [vk_api.groups.getById(group_ids=conversation['conversation']['peer']['local_id'])[0]['name'],
+                     peer_id])
+        except Exception as e:
+            print(conversation)
 
     return conversations_ids
 
@@ -24,6 +40,11 @@ def get_conversation_text(id, count_messages=30):
 
     conversation_history = vk_api.messages.getHistory(count=count_messages, peer_id=id)['items']
     for message in conversation_history:
+        if message["from_id"] not in cache:
+            user = vk_api.users.get(user_ids=message['from_id'])[0]
+            cache[message['from_id']] = f"{user['first_name']} {user['last_name']}"
+
+        message["from_id"] = cache[message["from_id"]]
         if message['text'] == '':
             messages.append(f'From: {message["from_id"]}\n\n <><><><><><><><>\n\n')
         else:

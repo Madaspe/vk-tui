@@ -14,7 +14,7 @@ from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
 from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.filters import Condition
 
-from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll
+from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll, vk_api
 
 selected_conversation = None
 
@@ -25,7 +25,8 @@ def monitoring_vk(text_area):
             break
 
         if event.type == VkEventType.MESSAGE_NEW and event.peer_id == selected_conversation:
-            text_area.text = f'From: {event.peer_id}\n\n {event.text}\n\n' + text_area.text
+            user = vk_api.users.get(users_id=event.peer_id)[0]
+            text_area.text = f'From: {user["first_name"]} {user["last_name"]}\n\n {event.text}\n\n' + text_area.text
 
 
 def command_handler(input_field, buff):
@@ -49,8 +50,8 @@ def next_conversations(buttons_list, offset):
         conversation = new_conversations[iter]
         button = buttons_list[iter]
 
-        button.text = conversation
-        button.handler = partial(conversations_handler, conversation)
+        button.text = conversation[0][:25]
+        button.handler = partial(conversations_handler, conversation[1])
 
     buttons_list[10].handler = partial(next_conversations, buttons_list, offset + 10)
     get_app().layout.focus(buttons_list[0])
@@ -58,7 +59,7 @@ def next_conversations(buttons_list, offset):
 
 buttons_list = []
 for conversation in get_list_conversations(count=10, offset=0):
-    buttons_list.append(Button(conversation, handler=partial(conversations_handler, conversation), width=30))
+    buttons_list.append(Button(conversation[0][:25], handler=partial(conversations_handler, conversation[1]), width=30))
 buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, 10), width=30))
 
 text_area = TextArea(focusable=False)
