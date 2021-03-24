@@ -1,38 +1,95 @@
 from functools import partial
+import threading
+
+from time import sleep
+from vk_api.longpoll import VkEventType
 
 from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.bindings.focus import focus_next, focus_previous
-from prompt_toolkit.layout import HSplit, Layout, VSplit, ScrollablePane
+from prompt_toolkit.layout import HSplit, Layout, VSplit, ScrollablePane, Window
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
+from prompt_toolkit.enums import EditingMode
+from prompt_toolkit.filters import Condition
 
-from vk import get_list_conversations, get_conversation_text
+from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll
 
-buttons_list = []
+selected_conversation = None
 
 
-def exit_clicked():
-    get_app().exit()
+def monitoring_vk(text_area):
+    for event in vk_longpoll.listen():
+        if not get_app().is_running:
+            break
+
+        if event.type == VkEventType.MESSAGE_NEW and event.peer_id == selected_conversation:
+            text_area.text = f'From: {event.peer_id}\n\n {event.text}\n\n' + text_area.text
+
+
+def command_handler(input_field, buff):
+    if selected_conversation is not None:
+        if input_field.text.startswith("/msg"):
+            send_message(selected_conversation, input_field.text.replace('/msg ', ''))
+
+    else:
+        return
 
 
 def conversations_handler(id):
+    global selected_conversation
     text_area.text = "\n".join(get_conversation_text(id))
 
+    selected_conversation = id
 
-for conversation in get_list_conversations(count=200, offset=0):
+def next_conversations(buttons_list, offset):
+    new_conversations = get_list_conversations(offset=offset)
+    for iter in range(0, 10):
+        conversation = new_conversations[iter]
+        button = buttons_list[iter]
+
+        button.text = conversation
+        button.handler = partial(conversations_handler, conversation)
+
+    buttons_list[10].handler = partial(next_conversations, buttons_list, offset + 10)
+    get_app().layout.focus(buttons_list[0])
+
+
+buttons_list = []
+for conversation in get_list_conversations(count=10, offset=0):
     buttons_list.append(Button(conversation, handler=partial(conversations_handler, conversation), width=30))
-buttons_list.append(Button("Exit", handler=exit_clicked, width=30))
+buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, 10), width=30))
 
-text_area = TextArea(focusable=True)
+text_area = TextArea(focusable=False)
+vk_mon = threading.Thread(target=monitoring_vk, args=(text_area,), daemon=True)
+vk_mon.start()
 
-root_container = VSplit(
-    [ScrollablePane(HSplit(buttons_list, padding=1, padding_char='-')),
-     Frame(body=text_area)]
+input_field = TextArea(
+    height=1,
+    prompt="(click 't' to focus)  >>> ",
+    multiline=False,
+    wrap_lines=False,
+    focusable=True
+)
+
+input_field.accept_handler = partial(command_handler, input_field)
+
+root_container = HSplit(
+    [Label(text="VK messanger (type 'q' for exit)", width=1), VSplit(
+        [Frame(title="Conversations", body=ScrollablePane(HSplit(buttons_list, padding=1, padding_char='-'))),
+         HSplit([Frame(title='Conversation', body=text_area), input_field])]
+    )]
 )
 
 layout = Layout(container=root_container, focused_element=buttons_list[0])
+
+@Condition
+def is_active():
+    if get_app().layout.has_focus(input_field):
+        return False
+    else:
+        return True
 
 # Key bindings.
 kb = KeyBindings()
@@ -40,17 +97,25 @@ kb.add("tab")(focus_next)
 kb.add("s-tab")(focus_previous)
 
 
-@kb.add('c-c')
-def exit():
+@kb.add("t", filter=is_active)
+def _(event):
+    get_app().layout.focus(input_field)
+
+
+@kb.add('q', filter=is_active)
+def _(event):
+    # vk_mon.()
     get_app().exit()
+    exit()
 
 
 # Build a main application object.
-application = Application(layout=layout, key_bindings=kb, full_screen=True)
+application = Application(layout=layout, key_bindings=kb, full_screen=True, editing_mode=EditingMode.VI)
 
 
 def main():
     application.run()
+    vk_mon.join()
 
 
 if __name__ == "__main__":

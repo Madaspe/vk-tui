@@ -1,11 +1,12 @@
 import vk_api
-import vk_api.longpoll
+from vk_api.longpoll import VkLongPoll
+from vk_api.utils import get_random_id
 
 from settings import TOKEN
 
 vk = vk_api.VkApi(token=TOKEN)
 vk_api = vk.get_api()
-
+vk_longpoll = VkLongPoll(vk)
 
 def get_list_conversations(count=30, offset=0):
     conversations_ids = []
@@ -29,3 +30,7 @@ def get_conversation_text(id, count_messages=30):
             messages.append(f'From: {message["from_id"]}\n\n {message["text"]}\n\n')
 
     return messages
+
+
+def send_message(id, msg):
+    vk_api.messages.send(peer_id=id, message=msg, random_id=get_random_id())
