@@ -25,7 +25,7 @@ def monitoring_vk(text_area):
             break
 
         if event.type == VkEventType.MESSAGE_NEW and event.peer_id == selected_conversation:
-            user = vk_api.users.get(users_id=event.peer_id)[0]
+            user = vk_api.users.get(user_ids=event.user_id)[0]
             text_area.text = f'From: {user["first_name"]} {user["last_name"]}\n\n {event.text}\n\n' + text_area.text
 
 
@@ -44,23 +44,24 @@ def conversations_handler(id):
 
     selected_conversation = id
 
+
 def next_conversations(buttons_list, offset):
-    new_conversations = get_list_conversations(offset=offset)
-    for iter in range(0, 10):
+    new_conversations = get_list_conversations(count=len(buttons_list), offset=offset)
+    for iter in range(0, len(buttons_list) - 1):
         conversation = new_conversations[iter]
         button = buttons_list[iter]
 
         button.text = conversation[0][:25]
         button.handler = partial(conversations_handler, conversation[1])
 
-    buttons_list[10].handler = partial(next_conversations, buttons_list, offset + 10)
+    buttons_list[-1].handler = partial(next_conversations, buttons_list, offset + len(buttons_list))
     get_app().layout.focus(buttons_list[0])
 
 
 buttons_list = []
 for conversation in get_list_conversations(count=10, offset=0):
     buttons_list.append(Button(conversation[0][:25], handler=partial(conversations_handler, conversation[1]), width=30))
-buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, 10), width=30))
+buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, len(buttons_list)), width=30))
 
 text_area = TextArea(focusable=False)
 vk_mon = threading.Thread(target=monitoring_vk, args=(text_area,), daemon=True)
@@ -85,12 +86,14 @@ root_container = HSplit(
 
 layout = Layout(container=root_container, focused_element=buttons_list[0])
 
+
 @Condition
 def is_active():
     if get_app().layout.has_focus(input_field):
         return False
     else:
         return True
+
 
 # Key bindings.
 kb = KeyBindings()
