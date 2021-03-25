@@ -8,18 +8,27 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.bindings.focus import focus_next, focus_previous
-from prompt_toolkit.layout import HSplit, Layout, VSplit, ScrollablePane, Window
+from prompt_toolkit.layout import (
+    CompletionsMenu,
+    Float,
+    FloatContainer,
+    HSplit,
+    Layout,
+    ScrollablePane,
+    VSplit,
+)
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
 from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.filters import Condition
+from prompt_toolkit.completion import WordCompleter
 
 from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll, vk_api
 
 selected_conversation = None
 
 
-def monitoring_vk(text_area):
+def monitoring_vk_longpoll(text_area):
     for event in vk_longpoll.listen():
         if not get_app().is_running:
             break
@@ -58,21 +67,39 @@ def next_conversations(buttons_list, offset):
     get_app().layout.focus(buttons_list[0])
 
 
-buttons_list = []
-for conversation in get_list_conversations(count=10, offset=0):
-    buttons_list.append(Button(conversation[0][:25], handler=partial(conversations_handler, conversation[1]), width=30))
-buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, len(buttons_list)), width=30))
+def get_buttons_list(count=10, offset=0):
+    buttons_list = []
+    for conversation in get_list_conversations(count=10, offset=0):
+        buttons_list.append(
+            Button(conversation[0][:25], handler=partial(conversations_handler, conversation[1]), width=30))
+    buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, len(buttons_list)), width=30))
 
+    return buttons_list
+
+
+command_completer = WordCompleter(
+    [
+        "/msg",
+        "/photo",
+        "/stiker",
+        "/file",
+        "/video"
+    ],
+
+)
+buttons_list = get_buttons_list()
 text_area = TextArea(focusable=False)
-vk_mon = threading.Thread(target=monitoring_vk, args=(text_area,), daemon=True)
-vk_mon.start()
+
+vk_monitoring_thread = threading.Thread(target=monitoring_vk_longpoll, args=(text_area,), daemon=True)
+vk_monitoring_thread.start()
 
 input_field = TextArea(
     height=1,
     prompt="(click 't' to focus)  >>> ",
     multiline=False,
     wrap_lines=False,
-    focusable=True
+    focusable=True,
+    completer=command_completer
 )
 
 input_field.accept_handler = partial(command_handler, input_field)
@@ -83,6 +110,17 @@ root_container = HSplit(
          HSplit([Frame(title='Conversation', body=text_area), input_field])]
     )]
 )
+
+root_container = FloatContainer(
+        root_container,
+        floats=[
+            Float(
+                xcursor=True,
+                ycursor=True,
+                content=CompletionsMenu(max_height=32, scroll_offset=2),
+            ),
+        ],
+    )
 
 layout = Layout(container=root_container, focused_element=buttons_list[0])
 
@@ -114,13 +152,9 @@ def _(event):
 
 
 # Build a main application object.
-application = Application(layout=layout, key_bindings=kb, full_screen=True, editing_mode=EditingMode.VI)
+application = Application(layout=layout, key_bindings=kb, full_screen=True)
 
 
-def main():
+def start_tui():
     application.run()
-    vk_mon.join()
-
-
-if __name__ == "__main__":
-    main()
+    vk_monitoring_thread.join()

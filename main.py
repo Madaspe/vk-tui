@@ -1,5 +1,6 @@
 from prompt_toolkit.shortcuts import input_dialog
 from settings import TOKEN, save_token
+from tui import start_tui
 
 if TOKEN is None:
     result = input_dialog(
@@ -9,4 +10,6 @@ if TOKEN is None:
     if result:
         TOKEN = result
         save_token(TOKEN)
+
+start_tui()
 
