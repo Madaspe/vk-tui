@@ -26,7 +26,7 @@ except KeyError:
 
 
 def save_peer_name(conversation):
-    peer_id = conversation['conversation']['peer']['id']
+    peer_id = str(conversation['conversation']['peer']['id'])
     type_conversation = conversation['conversation']['peer']['type']
 
     if type_conversation == "user":
@@ -45,23 +45,13 @@ def get_list_conversations(count=10, offset=0):
     conversations = vk_api.messages.getConversations(count=count, offset=offset, fields="first_name,last_name,name")[
         'items']
     for conversation in conversations:
-        try:
-            peer_id = str(conversation['conversation']['peer']['id'])
-            type_conversation = conversation['conversation']['peer']['type']
+        peer_id = str(conversation['conversation']['peer']['id'])
+        type_conversation = conversation['conversation']['peer']['type']
 
-            if peer_id not in peer_names[type_conversation]:
-                save_peer_name(conversation)
+        if peer_id not in peer_names[type_conversation]:
+            save_peer_name(conversation)
 
-            if type_conversation == "chat":
-                conversations_ids.append([peer_names['chat'][peer_id], peer_id])
-            elif type_conversation == "user":
-                conversations_ids.append(
-                    [peer_names['user'][peer_id], peer_id])
-            elif type_conversation == "group":
-                conversations_ids.append(
-                    [peer_names['group'][peer_id], peer_id])
-        except Exception as e:
-            print(e)
+        conversations_ids.append([peer_names[type_conversation][peer_id], peer_id])
 
     return conversations_ids
 
