@@ -23,7 +23,9 @@ from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.completion import WordCompleter
 
-from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll, vk_api
+from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll, vk_api, peer_names
+
+from simple_cache import save_cache_to_file, add_to_cache, get_from_cache
 
 selected_conversation = None
 
@@ -146,7 +148,8 @@ def _(event):
 
 @kb.add('q', filter=is_active)
 def _(event):
-    # vk_mon.()
+    add_to_cache('peer_names', peer_names)
+    save_cache_to_file()
     get_app().exit()
     exit()
 
