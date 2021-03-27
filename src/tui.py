@@ -1,7 +1,6 @@
 from functools import partial
 import threading
 
-from time import sleep
 from vk_api.longpoll import VkEventType
 
 from prompt_toolkit.application import Application
@@ -17,33 +16,33 @@ from prompt_toolkit.layout import (
     ScrollablePane,
     VSplit,
 )
-from prompt_toolkit.styles import Style
-from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
-from prompt_toolkit.enums import EditingMode
+from prompt_toolkit.widgets import Button, Frame, Label, TextArea
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.completion import WordCompleter
 
-from vk import get_list_conversations, get_conversation_text, send_message, vk_longpoll, vk_api, peer_names
+from vk import Vk
+from settings import TOKEN
 
-from simple_cache import save_cache_to_file, add_to_cache, get_from_cache
+from simple_cache import save_cache_to_file, add_to_cache
 
 selected_conversation = None
+vk = Vk(token=TOKEN)
 
 
 def monitoring_vk_longpoll(text_area):
-    for event in vk_longpoll.listen():
+    for event in vk.listen_longpoll():
         if not get_app().is_running:
             break
 
         if event.type == VkEventType.MESSAGE_NEW and event.peer_id == selected_conversation:
-            user = vk_api.users.get(user_ids=event.user_id)[0]
+            user = vk.vk_api.users.get(user_ids=event.user_id)[0]
             text_area.text = f'From: {user["first_name"]} {user["last_name"]}\n\n {event.text}\n\n' + text_area.text
 
 
 def command_handler(input_field, buff):
     if selected_conversation is not None:
         if input_field.text.startswith("/msg"):
-            send_message(selected_conversation, input_field.text.replace('/msg ', ''))
+            vk.send_message(selected_conversation, input_field.text.replace('/msg ', ''))
 
     else:
         return
@@ -51,13 +50,13 @@ def command_handler(input_field, buff):
 
 def conversations_handler(id):
     global selected_conversation
-    text_area.text = "\n".join(get_conversation_text(id))
+    text_area.text = "\n".join(vk.get_conversation_text(id))
 
     selected_conversation = id
 
 
 def next_conversations(buttons_list, offset):
-    new_conversations = get_list_conversations(count=len(buttons_list), offset=offset)
+    new_conversations = vk.get_list_conversations(count=len(buttons_list), offset=offset)
     for iter in range(0, len(buttons_list) - 1):
         conversation = new_conversations[iter]
         button = buttons_list[iter]
@@ -71,7 +70,7 @@ def next_conversations(buttons_list, offset):
 
 def get_buttons_list(count=10, offset=0):
     buttons_list = []
-    for conversation in get_list_conversations(count=10, offset=0):
+    for conversation in vk.get_list_conversations(count=10, offset=0):
         buttons_list.append(
             Button(conversation[0][:25], handler=partial(conversations_handler, conversation[1]), width=30))
     buttons_list.append(Button("Next", handler=partial(next_conversations, buttons_list, len(buttons_list)), width=30))
@@ -114,15 +113,15 @@ root_container = HSplit(
 )
 
 root_container = FloatContainer(
-        root_container,
-        floats=[
-            Float(
-                xcursor=True,
-                ycursor=True,
-                content=CompletionsMenu(max_height=32, scroll_offset=2),
-            ),
-        ],
-    )
+    root_container,
+    floats=[
+        Float(
+            xcursor=True,
+            ycursor=True,
+            content=CompletionsMenu(max_height=32, scroll_offset=2),
+        ),
+    ],
+)
 
 layout = Layout(container=root_container, focused_element=buttons_list[0])
 
@@ -148,7 +147,7 @@ def _(event):
 
 @kb.add('q', filter=is_active)
 def _(event):
-    add_to_cache('peer_names', peer_names)
+    add_to_cache('peer_names', vk.peer_names)
     save_cache_to_file()
     get_app().exit()
     exit()
