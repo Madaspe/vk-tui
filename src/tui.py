@@ -42,6 +42,11 @@ def command_handler(input_field, buff):
     if selected_conversation is not None:
         if input_field.text.startswith("/msg"):
             vk.send_message(selected_conversation, input_field.text.replace('/msg ', ''))
+        elif input_field.text.startswith('/photo'):
+            text = input_field.text.replace('/photo ', '')
+            text = text.split()
+
+            vk.send_photo(selected_conversation, text[0], msg=" ".join(text[1:]))
 
     else:
         return
