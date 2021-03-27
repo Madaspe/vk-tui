@@ -30,11 +30,10 @@ vk = Vk(token=TOKEN)
 
 
 def monitoring_vk_longpoll(text_area):
-    for event in vk.listen_longpoll():
+    for event in vk.vk_longpoll.listen():
         if not get_app().is_running:
             break
-
-        if event.type == VkEventType.MESSAGE_NEW and event.peer_id == selected_conversation:
+        if event.type == VkEventType.MESSAGE_NEW and str(event.peer_id) == str(selected_conversation):
             user = vk.vk_api.users.get(user_ids=event.user_id)[0]
             text_area.text = f'From: {user["first_name"]} {user["last_name"]}\n\n {event.text}\n\n' + text_area.text
 

@@ -77,10 +77,6 @@ class Vk:
 
     def send_message(self, id, msg):
         self.vk_api.messages.send(peer_id=id, message=msg, random_id=get_random_id())
-
-    def listen_longpoll(self):
-        for event in self.vk_longpoll.listen():
-            yield event
 # try:
 #     vk = vk_api.VkApi(token=TOKEN)
 #     vk_api = vk.get_api()
