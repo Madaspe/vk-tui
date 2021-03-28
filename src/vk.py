@@ -77,10 +77,13 @@ class Vk:
                     f"{user['name']}"
 
             name_user = self.peer_names[type_conversation][from_id]
+            from_user_text = f'From: {name_user}'
             if message['text'] == '':
-                messages.append(f'From: {name_user}\n\n <><><><><><><><>\n\n')
+                messages.append(
+                    f'{from_user_text}{" " * (50 - len(from_user_text))}Message ID: {message["id"]}\n\n <><><><><><><><>\n\n')
             else:
-                messages.append(f'From: {name_user}\n\n {message["text"]}\n\n')
+                messages.append(
+                    f'{from_user_text}{" " * (50 - len(from_user_text))}Message ID: {message["id"]}\n\n {message["text"]}\n\n')
 
         return messages
 
@@ -110,3 +113,9 @@ class Vk:
             self.vk_api.messages.send(peer_id=id, random_id=get_random_id(), attachment=attachment, message=msg)
         else:
             self.vk_api.messages.send(peer_id=id, random_id=get_random_id(), attachment=attachment)
+
+    def answer_messege(self, id, answer_id, msg=""):
+        self.vk_api.messages.send(peer_id=id, message=msg, random_id=get_random_id(), reply_to=answer_id)
+
+    def delete_message(self, id, message_id, for_all):
+        self.vk_api.messages.delete(message_ids=message_id, delete_for_all=for_all)

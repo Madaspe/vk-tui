@@ -16,6 +16,7 @@ from prompt_toolkit.layout import (
     ScrollablePane,
     VSplit,
 )
+from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Button, Frame, Label, TextArea
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.completion import WordCompleter
@@ -35,7 +36,8 @@ def monitoring_vk_longpoll(text_area):
             break
         if event.type == VkEventType.MESSAGE_NEW and str(event.peer_id) == str(selected_conversation):
             user = vk.vk_api.users.get(user_ids=event.user_id)[0]
-            text_area.text = f'From: {user["first_name"]} {user["last_name"]}\n\n {event.text}\n\n' + text_area.text
+            from_user_text = f'From: {user["first_name"]} {user["last_name"]}'
+            text_area.text = f'{from_user_text}{" " * (50 - len(from_user_text))}Message ID: {event.message_id}\n\n {event.text}\n\n' + text_area.text
 
 
 def command_handler(input_field, buff):
@@ -55,6 +57,18 @@ def command_handler(input_field, buff):
             text = text.split()
 
             vk.send_video(selected_conversation, text[0], msg=" ".join(text[1:]))
+
+        elif old_input_text.startswith("/answer"):
+            text = old_input_text.replace('/answer ', '')
+            text = text.split()
+
+            vk.answer_messege(selected_conversation, text[0], msg=" ".join(text[1:]))
+
+        elif old_input_text.startswith("/delete"):
+            text = old_input_text.replace('/delete ', '')
+            text = text.split()
+
+            vk.delete_messege(selected_conversation, text[0], text[1])
 
     input_field.text = ""
     return
@@ -96,7 +110,9 @@ command_completer = WordCompleter(
         "/photo",
         "/stiker",
         "/file",
-        "/video"
+        "/video",
+        "/answer",
+        "/delete"
     ],
 
 )
@@ -120,7 +136,8 @@ conversation_frame = Frame(title="Conversation (type 'c' for focus)", body=text_
 
 root_container = HSplit(
     [Label(text="VK messanger (type 'q' for exit)", width=1), VSplit(
-        [Frame(title="Conversations", body=ScrollablePane(HSplit(buttons_list, padding=1, padding_char='-'))),
+        [Frame(title="Conversations",
+               body=ScrollablePane(HSplit(buttons_list, padding=1, padding_char='-')), style="class:left-pane"),
          HSplit([conversation_frame, input_field])]
     )]
 )
@@ -134,6 +151,17 @@ root_container = FloatContainer(
             content=CompletionsMenu(max_height=32, scroll_offset=2),
         ),
     ],
+)
+
+style = Style(
+    [
+        # ("left-pane", "bg:#000087"),
+        # ("right-pane", "bg:#00aa00 #000000"),
+        # ("button", "#ff0000"),
+        # ("button-arrow", "#000000"),
+        # ("button focused", "bg:#ff0000"),
+        # ("text-area focused", "bg:#ff0000"),
+    ]
 )
 
 layout = Layout(container=root_container, focused_element=buttons_list[0])
@@ -172,7 +200,7 @@ def _(event):
 
 
 # Build a main application object.
-application = Application(layout=layout, key_bindings=kb, full_screen=True)
+application = Application(layout=layout, style=style, key_bindings=kb, full_screen=True)
 
 
 def start_tui():
