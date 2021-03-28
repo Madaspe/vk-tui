@@ -6,6 +6,7 @@ from settings import delete_token
 from simple_cache import get_from_cache
 from getpass import getuser
 
+
 def get_peer_names():
     try:
         peer_names = get_from_cache('peer_names')
@@ -59,20 +60,27 @@ class Vk:
             self.peer_names['group'][peer_id] = \
                 self.vk_api.groups.getById(group_ids=conversation['conversation']['peer']['local_id'])[0]['name']
 
-    def get_conversation_text(self, id, count_messages=30):
+    def get_conversation_text(self, id, count_messages=200):
         messages = []
 
         conversation_history = self.vk_api.messages.getHistory(count=count_messages, peer_id=id)['items']
         for message in conversation_history:
-            if message["from_id"] not in self.peer_names['user']:
-                user = self.vk_api.users.get(user_ids=message['from_id'])[0]
-                self.peer_names['user'][message['from_id']] = f"{user['first_name']} {user['last_name']}"
 
-            message["from_id"] = self.peer_names['user'][message["from_id"]]
+            type_conversation = "group" if str(message['from_id'])[0] == "-" else "user"
+            from_id = message['from_id'] if type_conversation == "user" else str(message['from_id'])[1:]
+
+            if from_id not in self.peer_names[type_conversation]:
+                user = self.vk_api.users.get(user_ids=from_id)[0] if type_conversation == "user" else \
+                    self.vk_api.groups.getById(group_ids=str(from_id))[0]
+                self.peer_names[type_conversation][
+                    from_id] = f"{user['first_name']} {user['last_name']}" if type_conversation == "user" else \
+                    f"{user['name']}"
+
+            name_user = self.peer_names[type_conversation][from_id]
             if message['text'] == '':
-                messages.append(f'From: {message["from_id"]}\n\n <><><><><><><><>\n\n')
+                messages.append(f'From: {name_user}\n\n <><><><><><><><>\n\n')
             else:
-                messages.append(f'From: {message["from_id"]}\n\n {message["text"]}\n\n')
+                messages.append(f'From: {name_user}\n\n {message["text"]}\n\n')
 
         return messages
 
