@@ -90,3 +90,15 @@ class Vk:
             self.vk_api.messages.send(peer_id=id, random_id=get_random_id(), attachment=attachment, message=msg)
         else:
             self.vk_api.messages.send(peer_id=id, random_id=get_random_id(), attachment=attachment)
+
+    def send_video(self, id, path, msg=""):
+        video = self.upload.video(path.replace('~', f"/home/{getuser()}"))
+        owner_id = video['owner_id']
+        video_id = video['video_id']
+        access_key = video['access_key']
+        attachment = f'video{owner_id}_{video_id}_{access_key}'
+
+        if msg:
+            self.vk_api.messages.send(peer_id=id, random_id=get_random_id(), attachment=attachment, message=msg)
+        else:
+            self.vk_api.messages.send(peer_id=id, random_id=get_random_id(), attachment=attachment)

@@ -39,17 +39,25 @@ def monitoring_vk_longpoll(text_area):
 
 
 def command_handler(input_field, buff):
+    old_input_text = input_field.text
+    input_field.text = "Command excluding"
+
     if selected_conversation is not None:
-        if input_field.text.startswith("/msg"):
-            vk.send_message(selected_conversation, input_field.text.replace('/msg ', ''))
-        elif input_field.text.startswith('/photo'):
-            text = input_field.text.replace('/photo ', '')
+        if old_input_text.startswith("/msg"):
+            vk.send_message(selected_conversation, old_input_text.replace('/msg ', ''))
+        elif old_input_text.startswith('/photo'):
+            text = old_input_text.replace('/photo ', '')
             text = text.split()
 
             vk.send_photo(selected_conversation, text[0], msg=" ".join(text[1:]))
+        elif old_input_text.startswith('/video'):
+            text = old_input_text.replace('/video ', '')
+            text = text.split()
 
-    else:
-        return
+            vk.send_video(selected_conversation, text[0], msg=" ".join(text[1:]))
+
+    input_field.text = ""
+    return
 
 
 def conversations_handler(id):
@@ -93,7 +101,7 @@ command_completer = WordCompleter(
 
 )
 buttons_list = get_buttons_list()
-text_area = TextArea(focusable=False)
+text_area = TextArea(focusable=True)
 
 vk_monitoring_thread = threading.Thread(target=monitoring_vk_longpoll, args=(text_area,), daemon=True)
 vk_monitoring_thread.start()
@@ -108,11 +116,12 @@ input_field = TextArea(
 )
 
 input_field.accept_handler = partial(command_handler, input_field)
+conversation_frame = Frame(title="Conversation (type 'c' for focus)", body=text_area)
 
 root_container = HSplit(
     [Label(text="VK messanger (type 'q' for exit)", width=1), VSplit(
         [Frame(title="Conversations", body=ScrollablePane(HSplit(buttons_list, padding=1, padding_char='-'))),
-         HSplit([Frame(title='Conversation', body=text_area), input_field])]
+         HSplit([conversation_frame, input_field])]
     )]
 )
 
@@ -155,6 +164,11 @@ def _(event):
     save_cache_to_file()
     get_app().exit()
     exit()
+
+
+@kb.add('c', filter=is_active)
+def _(event):
+    get_app().layout.focus(text_area)
 
 
 # Build a main application object.
